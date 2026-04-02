@@ -1,81 +1,209 @@
 #include <stdio.h>
-#include <assert.h>
-#include <time.h>
 #include <stdlib.h>
 #include <string.h>
 #include "khash.h"
 
-KHASH_SET_INIT_STR(str)
-KHASH_SET_INIT_INT(int)
- 
-static int data_size = 5000000;
-static unsigned *int_data;
-static char **str_data;
- 
-void ht_init_data()
-{
-    int i;
-    char buf[256];
-    khint32_t x = 11;
-    printf("--- generating data... ");
-    int_data = (unsigned*)calloc(data_size, sizeof(unsigned));
-    str_data = (char**)calloc(data_size, sizeof(char*));
-    for (i = 0; i < data_size; ++i) {
-        int_data[i] = (unsigned)(data_size * ((double)x / UINT_MAX) / 4) * 271828183u;
-        sprintf(buf, "%x", int_data[i]);
-        str_data[i] = strdup(buf);
-        x = 1664525L * x + 1013904223L;
+// hash mao
+KHASH_MAP_INIT_STR(kvmap, char*)
+
+// globals
+static khash_t(kvmap) *h;
+static FILE *log_fp;
+static const char *LOG_PATH = "db.log";
+
+// hash table operations
+void db_put(const char *key, const char *value) {
+    int ret;
+    khint_t k = kh_put(kvmap, h, key, &ret);
+
+    if (ret == -1) {
+        fprintf(stderr, "Error: failed to insert key '%s'\n", key);
+        return;
     }
-    printf("done!\n");
-}
-void ht_destroy_data()
-{
-    int i;
-    for (i = 0; i < data_size; ++i) free(str_data[i]);
-    free(str_data); free(int_data);
-}
-void ht_khash_int()
-{
-    int i, ret;
-    unsigned *data = int_data;
-    khash_t(int) *h;
-    unsigned k;
- 
-    h = kh_init(int);
-    for (i = 0; i < data_size; ++i) {
-        k = kh_put(int, h, data[i], &ret);
-        if (!ret) kh_del(int, h, k);
+
+    if (ret == 0) {
+        // Key already existed — free old value, but key pointer is reused
+        free((char*)kh_val(h, k));
+    } else {
+        // New key — duplicate it so we own the memory
+        kh_key(h, k) = strdup(key);
     }
-    printf("[ht_khash_int] size: %u\n", kh_size(h));
-    kh_destroy(int, h);
+
+    kh_val(h, k) = strdup(value);
 }
-void ht_khash_str()
-{
-    int i, ret;
-    char **data = str_data;
-    khash_t(str) *h;
-    unsigned k;
- 
-    h = kh_init(str);
-    for (i = 0; i < data_size; ++i) {
-        k = kh_put(str, h, data[i], &ret);
-        if (!ret) kh_del(str, h, k);
+
+const char *db_get(const char *key) {
+    khint_t k = kh_get(kvmap, h, key);
+    if (k == kh_end(h)) return NULL;
+    return kh_val(h, k);
+}
+
+void db_delete(const char *key) {
+    khint_t k = kh_get(kvmap, h, key);
+    if (k != kh_end(h)) {
+        free((char*)kh_key(h, k));
+        free((char*)kh_val(h, k));
+        kh_del(kvmap, h, k);
     }
-    printf("[ht_khash_int] size: %u\n", kh_size(h));
-    kh_destroy(str, h);
 }
-void ht_timing(void (*f)(void))
-{
-    clock_t t = clock();
-    (*f)();
-    printf("[ht_timing] %.3lf sec\n", (double)(clock() - t) / CLOCKS_PER_SEC);
+
+void db_free_all() {
+    khint_t k;
+    for (k = kh_begin(h); k != kh_end(h); ++k) {
+        if (!kh_exist(h, k)) continue;
+        free((char*)kh_key(h, k));
+        free((char*)kh_val(h, k));
+    }
+    kh_destroy(kvmap, h);
 }
-int main(int argc, char *argv[])
-{
-    if (argc > 1) data_size = atoi(argv[1]);
-    ht_init_data();
-    ht_timing(ht_khash_int);
-    ht_timing(ht_khash_str);
-    ht_destroy_data();
+
+// log operations
+void log_open() {
+    log_fp = fopen(LOG_PATH, "a");
+    if (!log_fp) {
+        fprintf(stderr, "Error: could not open log file '%s'\n", LOG_PATH);
+        exit(1);
+    }
+}
+
+void log_write_put(const char *key, const char *value) {
+    fprintf(log_fp, "PUT %s %s\n", key, value);
+    fflush(log_fp);
+}
+
+void log_write_del(const char *key) {
+    fprintf(log_fp, "DEL %s\n", key);
+    fflush(log_fp);
+}
+
+// Replay the log on startup to rebuild in-memory state
+void log_replay() {
+    FILE *f = fopen(LOG_PATH, "r");
+    if (!f) return;  // no log yet, fresh start
+
+    char op[8], key[256], value[256];
+    while (fscanf(f, "%7s", op) == 1) {
+        if (strcmp(op, "PUT") == 0) {
+            if (fscanf(f, "%255s %255s", key, value) == 2) {
+                db_put(key, value);
+            }
+        } else if (strcmp(op, "DEL") == 0) {
+            if (fscanf(f, "%255s", key) == 1) {
+                db_delete(key);
+            }
+        } else {
+            // Unknown op — skip the rest of the line
+            fscanf(f, "%*[^\n]\n");
+        }
+    }
+    fclose(f);
+}
+
+// Compact: rewrite log with only live keys, discarding old puts/deletes
+void log_compact() {
+    FILE *f = fopen("db.log.tmp", "w");
+    if (!f) {
+        fprintf(stderr, "Error: could not open temp file for compaction\n");
+        return;
+    }
+
+    khint_t k;
+    for (k = kh_begin(h); k != kh_end(h); ++k) {
+        if (!kh_exist(h, k)) continue;
+        fprintf(f, "PUT %s %s\n", kh_key(h, k), kh_val(h, k));
+    }
+    fclose(f);
+
+    // Close current log before renaming
+    if (log_fp) fclose(log_fp);
+
+    if (rename("db.log.tmp", LOG_PATH) != 0) {
+        fprintf(stderr, "Error: compaction rename failed\n");
+    }
+
+    // Reopen log for further appending
+    log_open();
+    printf("Compaction done.\n");
+}
+
+// CLI (temp)
+void print_help() {
+    printf("Commands:\n");
+    printf("  put <key> <value>  Store a key-value pair\n");
+    printf("  get <key>          Retrieve a value\n");
+    printf("  delete <key>       Delete a key\n");
+    printf("  compact            Compact the log file\n");
+    printf("  keys               List all keys\n");
+    printf("  help               Show this message\n");
+    printf("  exit               Quit\n");
+}
+
+void cmd_keys() {
+    int count = 0;
+    khint_t k;
+    for (k = kh_begin(h); k != kh_end(h); ++k) {
+        if (!kh_exist(h, k)) continue;
+        printf("  %s\n", kh_key(h, k));
+        count++;
+    }
+    if (count == 0) printf("  (empty)\n");
+}
+
+int main() {
+    h = kh_init(kvmap);
+
+    // Rebuild state from disk before accepting commands
+    log_replay();
+    log_open();
+
+    printf("kvdb - simple key-value store\n");
+    printf("Type 'help' for commands.\n\n");
+
+    char line[512];
+    char key[256], value[256];
+
+    printf("db> ");
+    while (fgets(line, sizeof(line), stdin)) {
+
+        // Strip trailing newline
+        line[strcspn(line, "\n")] = '\0';
+
+        if (sscanf(line, "put %255s %255s", key, value) == 2) {
+            db_put(key, value);
+            log_write_put(key, value);
+            printf("OK\n");
+
+        } else if (sscanf(line, "get %255s", key) == 1) {
+            const char *v = db_get(key);
+            if (v) printf("%s\n", v);
+            else   printf("(nil)\n");
+
+        } else if (sscanf(line, "delete %255s", key) == 1) {
+            db_delete(key);
+            log_write_del(key);
+            printf("OK\n");
+
+        } else if (strncmp(line, "compact", 7) == 0) {
+            log_compact();
+
+        } else if (strncmp(line, "keys", 4) == 0) {
+            cmd_keys();
+
+        } else if (strncmp(line, "help", 4) == 0) {
+            print_help();
+
+        } else if (strncmp(line, "exit", 4) == 0) {
+            break;
+
+        } else if (strlen(line) > 0) {
+            printf("Unknown command. Type 'help' for commands.\n");
+        }
+
+        printf("db> ");
+    }
+
+    db_free_all();
+    fclose(log_fp);
+    printf("\nBye.\n");
     return 0;
 }
