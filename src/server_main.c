@@ -1,5 +1,7 @@
 #include "store.h"
 #include "protocol.h"
+#include "crypto.h"      // <-- make sure this is included for Curve25519 + session
+#include "session.h"     // <-- your session struct + helpers
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,49 +14,119 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#define PORT    6379
-#define BACKLOG 16
+#define PORT     6379
+#define BACKLOG  16
 #define BUF_SIZE 4096
 
 static int server_fd = -1;
 
-// ─── Handle one parsed command, send response ─────────────────────────────────
-static void dispatch(int fd, const Command *cmd) {
+// ───────────────────────────────────────────────────────────────
+// Per‑client session state
+// ───────────────────────────────────────────────────────────────
+typedef struct {
+    int     fd;
+    Session session;
+    int     handshook;  // 1 once HELLO exchange is done
+} ClientState;
+
+// ───────────────────────────────────────────────────────────────
+// Updated dispatch() with HELLO + ROTATE + session key derivation
+// ───────────────────────────────────────────────────────────────
+static void dispatch(ClientState *cs, const Command *cmd) {
+    int fd = cs->fd;
+
+    // Before handshake, only HELLO is allowed
+    if (!cs->handshook && cmd->type != CMD_HELLO) {
+        protocol_send_response(fd, RESP_ERROR, "send HELLO first");
+        return;
+    }
+
     switch (cmd->type) {
+
+        case CMD_HELLO: {
+            uint8_t client_pub[CURVE25519_KEY_LEN];
+
+            if (!crypto_from_hex(cmd->pubkey_hex, client_pub, CURVE25519_KEY_LEN)) {
+                protocol_send_response(fd, RESP_ERROR, "bad pubkey");
+                return;
+            }
+
+            if (!session_init(&cs->session)) {
+                protocol_send_response(fd, RESP_ERROR, "keygen failed");
+                return;
+            }
+
+            if (!crypto_derive_session(
+                    cs->session.keypair.priv,
+                    client_pub,
+                    &cs->session.key)) {
+                protocol_send_response(fd, RESP_ERROR, "key derivation failed");
+                return;
+            }
+
+            char server_pub_hex[65];
+            crypto_to_hex(cs->session.keypair.pub, CURVE25519_KEY_LEN, server_pub_hex);
+
+            protocol_send_response(fd, RESP_HELLO, server_pub_hex);
+            cs->handshook = 1;
+
+            printf("[server] handshake complete (fd=%d)\n", fd);
+            break;
+        }
+
+        case CMD_ROTATE: {
+            session_invalidate(&cs->session);
+            cs->handshook = 0;
+            protocol_send_response(fd, RESP_OK, NULL);
+            printf("[server] key rotation initiated (fd=%d)\n", fd);
+            break;
+        }
+
         case CMD_PUT:
             store_put(cmd->key, cmd->value);
             protocol_send_response(fd, RESP_OK, NULL);
             break;
+
         case CMD_GET: {
             const char *val = store_get(cmd->key);
             if (val) protocol_send_response(fd, RESP_VALUE, val);
             else     protocol_send_response(fd, RESP_NIL, NULL);
             break;
         }
+
         case CMD_DEL:
             store_delete(cmd->key);
             protocol_send_response(fd, RESP_OK, NULL);
             break;
+
         case CMD_KEYS: {
             char *keys = store_keys();
             protocol_send_response(fd, RESP_KEYS, keys);
             free(keys);
             break;
         }
+
         case CMD_PING:
             protocol_send_response(fd, RESP_PONG, NULL);
             break;
+
         case CMD_UNKNOWN:
             protocol_send_response(fd, RESP_ERROR, "unknown command");
             break;
     }
 }
 
-// ─── Per-client thread ────────────────────────────────────────────────────────
-
+// ───────────────────────────────────────────────────────────────
+// Updated client_thread() using ClientState
+// ───────────────────────────────────────────────────────────────
 static void *client_thread(void *arg) {
     int fd = *(int*)arg;
     free(arg);
+
+    ClientState cs;
+    memset(&cs, 0, sizeof(cs));
+    cs.fd        = fd;
+    cs.handshook = 0;
 
     char    buf[BUF_SIZE];
     char    line[BUF_SIZE];
@@ -68,7 +140,7 @@ static void *client_thread(void *arg) {
                 line[line_len] = '\0';
                 if (line_len > 0) {
                     protocol_parse_command(line, &cmd);
-                    dispatch(fd, &cmd);
+                    dispatch(&cs, &cmd);
                 }
                 line_len = 0;
             } else if (line_len < BUF_SIZE - 1) {
@@ -77,12 +149,15 @@ static void *client_thread(void *arg) {
         }
     }
 
+    session_invalidate(&cs.session);
     printf("[server] client disconnected (fd=%d)\n", fd);
     close(fd);
     return NULL;
 }
 
-// ─── Shutdown ─────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────
+// Shutdown handler
+// ───────────────────────────────────────────────────────────────
 static void handle_sigint(int sig) {
     (void)sig;
     printf("\n[server] shutting down...\n");
@@ -91,7 +166,9 @@ static void handle_sigint(int sig) {
     exit(0);
 }
 
-// ─── Password prompt ──────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────
+// Password prompt
+// ───────────────────────────────────────────────────────────────
 static void read_password(char *buf, int maxlen) {
     struct termios old, noecho;
     tcgetattr(STDIN_FILENO, &old);
@@ -104,7 +181,9 @@ static void read_password(char *buf, int maxlen) {
     printf("\n");
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────
+// Main
+// ───────────────────────────────────────────────────────────────
 int main() {
     signal(SIGINT, handle_sigint);
 

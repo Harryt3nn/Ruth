@@ -3,39 +3,40 @@
 
 #include <stddef.h>
 
-// ─── Command Types ────────────────────────────────────────────────────────────
 typedef enum {
     CMD_PUT,
     CMD_GET,
     CMD_DEL,
     CMD_KEYS,
     CMD_PING,
+    CMD_HELLO,    // ← new: initiates handshake, carries public key
+    CMD_ROTATE,   // ← new: triggers key rotation
     CMD_UNKNOWN
 } CmdType;
 
-// ─── Parsed Command ───────────────────────────────────────────────────────────
 typedef struct {
     CmdType type;
     char    key[256];
     char    value[1024];
+    char    pubkey_hex[65];  // 32 bytes as hex
 } Command;
 
-// ─── Response Status ──────────────────────────────────────────────────────────
 typedef enum {
     RESP_OK,
     RESP_VALUE,
     RESP_NIL,
     RESP_KEYS,
     RESP_PONG,
+    RESP_HELLO,   // ← new: server responds with its public key
     RESP_ERROR
 } RespType;
 
 typedef struct {
     RespType type;
     char     body[4096];
+    char     pubkey_hex[65];
 } Response;
 
-// ─── API ──────────────────────────────────────────────────────────────────────
 int  protocol_parse_command(const char *line, Command *out);
 void protocol_send_response(int fd, RespType type, const char *body);
 int  protocol_parse_response(const char *raw, Response *out);
