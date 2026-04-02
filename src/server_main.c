@@ -8,7 +8,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <signal.h>
-
 #include "store.h"
 
 #define PORT        6379
