@@ -1,48 +1,35 @@
-# ─── Compiler & Flags ─────────────────────────────────────────────────────────
 CC      = gcc
 CFLAGS  = -Wall -Wextra -O2 -Iinclude
 LDFLAGS = -lssl -lcrypto -lpthread
 
-# ─── Directories ──────────────────────────────────────────────────────────────
 SRC_DIR   = src
 BUILD_DIR = build
-INC_DIR   = include
 
-# ─── Source Files ─────────────────────────────────────────────────────────────
-STORE_SRC  = $(SRC_DIR)/store.c
-SERVER_SRC = $(SRC_DIR)/server_main.c
-CLIENT_SRC = $(SRC_DIR)/cli_main.c
+# ─── Object files ─────────────────────────────────────────────────────────────
+STORE_OBJ    = $(BUILD_DIR)/store.o
+PROTOCOL_OBJ = $(BUILD_DIR)/protocol.o
+CLIENT_OBJ   = $(BUILD_DIR)/client.o
+SERVER_OBJ   = $(BUILD_DIR)/server_main.o
+CLI_OBJ      = $(BUILD_DIR)/cli_main.o
 
-# ─── Object Files ─────────────────────────────────────────────────────────────
-STORE_OBJ  = $(BUILD_DIR)/store.o
-SERVER_OBJ = $(BUILD_DIR)/server_main.o
-CLIENT_OBJ = $(BUILD_DIR)/cli_main.o
-
-# ─── Targets ──────────────────────────────────────────────────────────────────
+# ─── Binaries ─────────────────────────────────────────────────────────────────
 SERVER_BIN = $(BUILD_DIR)/ruth-server
 CLIENT_BIN = $(BUILD_DIR)/ruth-client
 
-# ─── Default target ───────────────────────────────────────────────────────────
-.PHONY: all clean
+.PHONY: all clean run-server run-client
 
 all: $(SERVER_BIN) $(CLIENT_BIN)
 
-# ─── Build store object (shared by both binaries) ─────────────────────────────
-$(STORE_OBJ): $(STORE_SRC) $(INC_DIR)/store.h $(INC_DIR)/khash.h
+# ─── Compile each source to object ────────────────────────────────────────────
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# ─── Server binary ────────────────────────────────────────────────────────────
-$(SERVER_OBJ): $(SERVER_SRC) $(INC_DIR)/store.h $(INC_DIR)/protocol.h
-	$(CC) $(CFLAGS) -c $< -o $@
-
-$(SERVER_BIN): $(SERVER_OBJ) $(STORE_OBJ)
+# ─── Link server ──────────────────────────────────────────────────────────────
+$(SERVER_BIN): $(SERVER_OBJ) $(STORE_OBJ) $(PROTOCOL_OBJ)
 	$(CC) $^ -o $@ $(LDFLAGS)
 
-# ─── Client binary ────────────────────────────────────────────────────────────
-$(CLIENT_OBJ): $(CLIENT_SRC) $(INC_DIR)/client.h $(INC_DIR)/protocol.h
-	$(CC) $(CFLAGS) -c $< -o $@
-
-$(CLIENT_BIN): $(CLIENT_OBJ)
+# ─── Link client ──────────────────────────────────────────────────────────────
+$(CLIENT_BIN): $(CLI_OBJ) $(CLIENT_OBJ) $(PROTOCOL_OBJ)
 	$(CC) $^ -o $@ $(LDFLAGS)
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -54,3 +41,4 @@ run-server: $(SERVER_BIN)
 
 run-client: $(CLIENT_BIN)
 	$(CLIENT_BIN)
+
