@@ -154,15 +154,25 @@ int db_put(DbConn *conn, const char *key, const char *value) {
     if (!maybe_rotate(conn)) return 0;
 
     char hex[4096];
-    if (!encrypt_to_hex(conn, value, hex, sizeof(hex))) return 0;
+    if (!encrypt_to_hex(conn, value, hex, sizeof(hex)))
+        return 0;
 
     char cmd[BUF_SIZE];
     snprintf(cmd, sizeof(cmd), "PUT %s %s\n", key, hex);
 
     char response[BUF_SIZE];
-    if (!send_recv(conn, cmd, response, sizeof(response))) return 0;
+    if (!send_recv(conn, cmd, response, sizeof(response)))
+        return 0;
+
     Response r;
     protocol_parse_response(response, &r);
+
+    // NEW: print helpful hint if server returns an error
+    if (r.type == RESP_ERROR) {
+        printf("hint: %s\n", r.body);
+        return 0;
+    }
+
     return r.type == RESP_OK;
 }
 
