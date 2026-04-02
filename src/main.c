@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <openssl/evp.h>
+#include <openssl/rand.h>
+#include <openssl/sha.h>
 #include "khash.h"
-
 // hash map
 KHASH_MAP_INIT_STR(kvmap, char*)
 
