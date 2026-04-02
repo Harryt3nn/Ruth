@@ -56,7 +56,7 @@ void protocol_send_response(int fd, RespType type, const char *body) {
             write(fd, buf, strlen(buf));
             break;
         case RESP_NIL:
-            write(fd, "NIL\n", 4);
+            write(fd, "(empty)\n", 4);
             break;
         case RESP_KEYS:
             snprintf(buf, sizeof(buf), "KEYS\n%s\n", body ? body : "");
