@@ -51,6 +51,7 @@ static void dispatch(int fd, const Command *cmd) {
 }
 
 // ─── Per-client thread ────────────────────────────────────────────────────────
+
 static void *client_thread(void *arg) {
     int fd = *(int*)arg;
     free(arg);
