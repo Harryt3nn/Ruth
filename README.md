@@ -31,4 +31,6 @@ OpenSSL is licensed under the Apache License 2.0.
 
  **Start order matters** — start all 3 server nodes before the client. The nodes need to find each other and elect a leader first, which takes about 300ms after all nodes are up.
 
-**Writes must go to the leader** — if you connect to a follower and do a `put`, you'll get back:
+
+
+06/04/26 - 20:54 I haven't changed any code since the last update, rather I have spent that time researching into industry standards for similar peices of software. First of all, mostly use cloud computing; this could become an element I want to intriduce for Ruth later, but is not currently a necessity as apart of the project. Secondly, a lot of similar NoSql systems are commonplace in major companies. Cassandra DB (not an inspiration for the name) is a very large wide column store NoSql DB. For key-value stores, the biggest I could find was 'Valkey', which will be infinitely better and more practical than anything I can make. It's open source and has had years for teams to optimise the C. The point of Ruth was to build these systems from the ground up. Also, Ruth has a bigger emphasis on security than Valkey. Before I reveiw the code, I want to further define what Ruth actually is, which is a smaller, secure cousin of Redis. Ruth is different from all of these for offering end-to-end encryption. This would destroy the performance of something like Redis, as well as killing some of the functionality. E2E is only viable when the server does not need to interpret the data that is being transferred. 
