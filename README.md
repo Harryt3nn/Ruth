@@ -46,8 +46,12 @@ Entry log 6: 07/04/26 - 17:07 The issue now is clear. After some debugging, it s
 
 Reference material:
 
+
+(distributed systems)
 https://www.youtube.com/@DistributedSystems
 https://dl.acm.org/doi/pdf/10.1145/214451.214456
 https://r4.vlebooks.com/Reader?ean=9781292038001
 https://r3.vlebooks.com/Reader?ean=9781447930174
 https://dl-acm-org.libproxy.ncl.ac.uk/doi/pdf/10.1145/359545.359563
+https://github.com/colohan/dschat
+
