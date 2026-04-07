@@ -2,7 +2,6 @@
 #include "protocol.h"
 #include "crypto.h"
 #include "session.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,8 +9,10 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-
 #define BUF_SIZE 4096
+
+// provides persistent TCP server connection 
+// establishes secure session + session rotation
 
 // ─── Internal send/recv ───────────────────────────────────────────────────────
 static int send_recv(DbConn *conn, const char *cmd,

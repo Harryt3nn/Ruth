@@ -1,5 +1,4 @@
 #include "cluster.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,6 +6,11 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+
+
+// defines cluster membership layer:
+// system needs to know which nodes exist, where they exist (port), their status (determined by heartbeat)
+// must know which key is owned by which node
 
 // ─── FNV-1a hash — fast, good distribution for consistent hashing ─────────────
 static uint32_t fnv1a(const char *key) {

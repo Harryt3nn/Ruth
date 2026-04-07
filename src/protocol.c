@@ -3,6 +3,10 @@
 #include <string.h>
 #include <unistd.h>
 
+
+// protocol determines what commands a client can send and responses a server can run
+// in charge of handshake messages used to establish sessions
+
 int protocol_parse_command(const char *line, Command *out) {
     memset(out, 0, sizeof(Command));
 

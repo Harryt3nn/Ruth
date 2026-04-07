@@ -72,14 +72,14 @@ typedef struct
     Wal wal; // the raft log
 
     // Volatile state
-    uint64_t commit_index;
-    uint64_t last_applied;
+    uint64_t commit_index; // highest log entry
+    uint64_t last_applied; // highest entry applied to state machine
 
     // Leader volatile state
-    PeerState peers[MAX_NODES];
+    PeerState peers[MAX_NODES]; 
     int peer_count;
 
-    // Election
+    // Election states
     int votes_received;
     time_t last_heartbeat;
     int election_timeout_ms;  // randomised 150-300ms
@@ -89,23 +89,23 @@ typedef struct
     void *apply_userdata;
 
     Cluster *cluster;
-    pthread_mutex_t lock;
-    pthread_t ticker_thread;
-    int running;
+    pthread_mutex_t lock; // to protect raft state
+    pthread_t ticker_thread; // for running periodic tasks, such as sending heartbeats and calling elections
+    int running; // control thread lifecycle
 } RaftState;
 
 // API functions:
-int raft_init(RaftState *r, int self_id, Cluster *c, void (*apply_fn)(const WalEntry*, void*), void *userdata);
-void raft_start(RaftState *r);
-void raft_stop(RaftState *r);
+int raft_init(RaftState *r, int self_id, Cluster *c, void (*apply_fn)(const WalEntry*, void*), void *userdata); // initialises raft state, load wal, establish timers
+void raft_start(RaftState *r); // starts ticker thread
+void raft_stop(RaftState *r); // stops thread, closes raft
 
 // Submit a new entry (leader only — returns 0 if not leader)
-int  raft_submit(RaftState *r, WalOp op, const char *key, const char *value);
+int  raft_submit(RaftState *r, WalOp op, const char *key, const char *value); // creates wal entry, appends wal
 
 // Handle incoming Raft message from peer
 void raft_handle_message(RaftState *r, RaftMsg *msg, int reply_fd);
 
-int  raft_is_leader(const RaftState *r);
+int  raft_is_leader(const RaftState *r); 
 int  raft_leader_id(const RaftState *r);
 
 #endif

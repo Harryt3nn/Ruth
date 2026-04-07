@@ -1,12 +1,14 @@
 #ifndef STORE_H
 #define STORE_H
 
-void store_init(const char *password);
-void store_shutdown();
+void store_init(const char *password); // initialses in memory store
+void store_shutdown(); // needed to wipe sensetive data
 
-void store_put(const char *key, const char *value);
+
+// when raft commits a(n) _____ entry 
+void store_put(const char *key, const char *value); 
 const char *store_get(const char *key);
 void store_delete(const char *key);
-char *store_keys();   // returns heap-allocated newline-separated key list
+char *store_keys(); // returns heap-allocated newline-separated key list
 
 #endif
