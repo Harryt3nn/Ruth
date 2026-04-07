@@ -16,6 +16,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #define BUF_SIZE 4096
+#include <libgen.h>
 
 static int server_fd = -1;
 static Cluster cluster;
@@ -265,7 +266,14 @@ int main(int argc, char *argv[])
     }
 
     // Init store + Raft
-    store_init(password);
+    char config_copy[256];
+    strncpy(config_copy, argv[2], sizeof(config_copy) - 1);
+    char data_dir[256];
+    snprintf(data_dir, sizeof(data_dir), "%s/../data", dirname(config_copy));
+
+    store_init(password, data_dir);
+
+    
     memset(password, 0, sizeof(password));
 
     raft_init(&raft, self_id, &cluster, on_commit, NULL);

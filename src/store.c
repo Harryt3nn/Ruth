@@ -29,7 +29,7 @@ KHASH_MAP_INIT_STR(kvmap, char*)
 
 static khash_t(kvmap) *h;
 static FILE            *log_fp;
-static const char      *LOG_PATH = "db.log";
+static const char *LOG_PATH = NULL;
 static unsigned char    aes_key[KEY_LEN];
 static pthread_mutex_t  store_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -218,8 +218,10 @@ static void log_write_del(const char *key)
 }
 
 // Public API functions:
-void store_init(const char *password) 
-{
+void store_init(const char *password, const char *data_dir) {
+    static char log_path[256];
+    snprintf(log_path, sizeof(log_path), "%s/db.log", data_dir);
+    LOG_PATH = log_path;
     derive_key(password);
     h = kh_init(kvmap);
     log_replay();

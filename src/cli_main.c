@@ -96,6 +96,6 @@ int main(int argc, char *argv[])
     }
 
     db_disconnect(conn);
-    printf("\nDisconnected.\n");
+    printf("\nDone...\n");
     return 0;
 }

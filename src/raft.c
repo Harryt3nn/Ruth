@@ -30,11 +30,11 @@ static void send_to_node(RaftState *r, int node_id, const RaftMsg *msg)
     if (n) send_msg(n->fd, msg);
 }
 
-static long ms_since(time_t t) 
+static long ms_since(struct timespec t) 
 {
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
-    return (now.tv_sec - t) * 1000 + now.tv_nsec / 1000000;
+    return (now.tv_sec - t.tv_sec) * 1000 + (now.tv_nsec - t.tv_nsec) / 1000000;
 }
 
 // Apply committed entries to the store 
@@ -56,7 +56,6 @@ static void become_follower(RaftState *r, uint64_t term)
     r->current_term = term;
     r->voted_for = -1;
     clock_gettime(CLOCK_MONOTONIC, (struct timespec*)&r->last_heartbeat);
-    printf("[raft] node %d → FOLLOWER (term %lu)\n", r->self_id, term);
 }
 
 // Become candidate, start election
@@ -192,6 +191,7 @@ static void handle_append_req(RaftState *r, const RaftMsg *req, int reply_fd)
 
     // Valid leader — reset election timeout
     become_follower(r, req->term);
+    r->leader_id = req->from_id;
 
     // Append entries
     for (int i = 0; i < req->entry_count; i++) 
@@ -396,7 +396,5 @@ int raft_is_leader(const RaftState *r)
 
 int raft_leader_id(const RaftState *r) 
 {
-    // Scan peers — whoever we last heard from in follower state
-    // Simplified: return self if leader, -1 otherwise
-    return r->role == RAFT_LEADER ? r->self_id : -1;
+    return r->role == RAFT_LEADER ? r->self_id : r->leader_id;
 }

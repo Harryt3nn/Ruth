@@ -162,15 +162,7 @@ void cluster_mark_alive(Cluster *c, int id)
 
 int cluster_quorum(const Cluster *c) 
 {
-    int alive = 0;
-    for (int i = 0; i < c->count; i++)
-    {
-        if (c->nodes[i].status == NODE_ALIVE) 
-        {
-            alive++;
-        }
-    }
-    return (alive / 2) + 1;
+    return (c->count / 2) + 1;  // always based on total, not alive
 }
 
 int cluster_connect_peers(Cluster *c) 

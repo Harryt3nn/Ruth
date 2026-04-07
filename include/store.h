@@ -1,7 +1,7 @@
 #ifndef STORE_H
 #define STORE_H
 
-void store_init(const char *password); // initialses in memory store
+void store_init(const char *password, const char *data_dir); // initialses in memory store
 void store_shutdown(); // needed to wipe sensetive data
 
 

@@ -33,7 +33,7 @@ typedef struct
     int from_id; // id of sender node
 
 
-    // VOTE_REQ fields (prevents old leaders being relected)
+    // VOTE_REQ fields (prevents old leaders being re-elected)
     uint64_t last_log_index;
     uint64_t last_log_term;
 
@@ -81,7 +81,7 @@ typedef struct
 
     // Election states
     int votes_received;
-    time_t last_heartbeat;
+    struct timespec last_heartbeat;  
     int election_timeout_ms;  // randomised 150-300ms
 
     // Apply callback — called when entries are committed
@@ -92,6 +92,8 @@ typedef struct
     pthread_mutex_t lock; // to protect raft state
     pthread_t ticker_thread; // for running periodic tasks, such as sending heartbeats and calling elections
     int running; // control thread lifecycle
+
+    int leader_id;  // track current known leader
 } RaftState;
 
 // API functions:
