@@ -3,11 +3,9 @@
 #include <string.h>
 #include <unistd.h>         // STDIN_FILENO
 #include <termios.h>        // terminal echo control
-
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 #include <openssl/sha.h>
-
 #include "khash.h"
 
 // ─── Constants ────────────────────────────────────────────────────────────────
