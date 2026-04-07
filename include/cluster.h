@@ -2,6 +2,7 @@
 #define CLUSTER_H
 #include <stdint.h>
 #define MAX_NODES 16
+#include <pthread.h>
 
 typedef enum 
 {
@@ -24,6 +25,8 @@ typedef struct
     Node nodes[MAX_NODES]; // array of nodes
     int count; // number of configured nodes
     int self_id; // which node is this process
+    pthread_t reconnect_thread;
+    int running;
 } Cluster;
 
 // API functions:
@@ -34,7 +37,7 @@ int   cluster_connect_peers(Cluster *c); // attempts TCP connection for all aliv
 void  cluster_mark_dead(Cluster *c, int id); // change status to dead
 void  cluster_mark_alive(Cluster *c, int id); // change status to living
 int   cluster_quorum(const Cluster *c);  // majority count needed
-
+static void *reconnect_thread(void *arg);
 // Consistent hash: returns node id responsible for key
 int cluster_hash_key(const Cluster *c, const char *key);
 

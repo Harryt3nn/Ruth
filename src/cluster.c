@@ -147,7 +147,9 @@ void cluster_mark_dead(Cluster *c, int id)
     Node *n = cluster_get_node(c, id);
     if (n) 
     { 
-        n->status = NODE_DEAD; build_ring(c); 
+        if (n->fd >= 0) { close(n->fd); n->fd = -1; }  // ← add this
+        n->status = NODE_DEAD; 
+        build_ring(c); 
     }
 }
 
@@ -194,4 +196,49 @@ int cluster_connect_peers(Cluster *c)
         }
     }
     return 1;
+}
+
+void cluster_start_reconnector(Cluster *c) 
+{
+    c->running = 1;
+    pthread_create(&c->reconnect_thread, NULL, reconnect_thread, c);
+}
+
+void cluster_stop_reconnector(Cluster *c) 
+{
+    c->running = 0;
+    pthread_join(c->reconnect_thread, NULL);
+}
+
+static void *reconnect_thread(void *arg) 
+{
+    Cluster *c = arg;
+    while (c->running) 
+    {
+        sleep(2);
+        for (int i = 0; i < c->count; i++) 
+        {
+            Node *n = &c->nodes[i];
+            if (n->id == c->self_id || n->fd >= 0) continue;
+
+            int fd = socket(AF_INET, SOCK_STREAM, 0);
+            struct sockaddr_in addr;
+            memset(&addr, 0, sizeof(addr));
+            addr.sin_family = AF_INET;
+            addr.sin_port = htons(n->port);
+            inet_pton(AF_INET, n->host, &addr.sin_addr);
+
+            if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) == 0) 
+            {
+                n->fd = fd;
+                cluster_mark_alive(c, n->id);
+                printf("[cluster] reconnected to node %d\n", n->id);
+            } 
+            else 
+            {
+                close(fd);
+            }
+        }
+    }
+    return NULL;
 }

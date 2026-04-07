@@ -7,7 +7,7 @@
 
 static void print_help() 
 {
-    printf("Commands:\n");
+    printf("  Ruth-db command sheet:\n");
     printf("  put <key> <value>   Store a value\n");
     printf("  get <key>           Retrieve a value\n");
     printf("  delete <key>        Delete a key\n");
@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
     char line[4096];
     char key[256], value[1024];
 
-    printf("db> ");
+    printf("Ruth-db> ");
     while (fgets(line, sizeof(line), stdin)) 
     {
         line[strcspn(line, "\n")] = '\0';

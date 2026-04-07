@@ -55,6 +55,7 @@ static void become_follower(RaftState *r, uint64_t term)
     r->role = RAFT_FOLLOWER;
     r->current_term = term;
     r->voted_for = -1;
+    r->election_timeout_ms = random_election_timeout();  
     clock_gettime(CLOCK_MONOTONIC, (struct timespec*)&r->last_heartbeat);
 }
 
@@ -66,6 +67,10 @@ static void start_election(RaftState *r)
     r->voted_for = r->self_id;
     r->votes_received = 1;  // vote for self
 
+    // NEW: randomize and reset election timer for this term
+    r->election_timeout_ms = random_election_timeout();
+    clock_gettime(CLOCK_MONOTONIC, (struct timespec*)&r->last_heartbeat);
+
     printf("[raft] node %d → CANDIDATE (term %lu)\n", r->self_id, r->current_term);
 
     RaftMsg req;
@@ -75,11 +80,9 @@ static void start_election(RaftState *r)
     req.from_id = r->self_id;
     req.last_log_index = r->wal.last_index;
 
-    for (int i = 0; i < r->cluster->count; i++) 
-    {
+    for (int i = 0; i < r->cluster->count; i++) {
         Node *n = &r->cluster->nodes[i];
-        if (n->id == r->self_id || n->status == NODE_DEAD) 
-        {
+        if (n->id == r->self_id || n->status == NODE_DEAD) {
             continue;
         }
         send_to_node(r, n->id, &req);

@@ -171,6 +171,8 @@ static void *client_thread(void *arg)
             if (msg->type <= RAFT_MSG_APPEND_RESP) 
             {
                 cs.is_peer = 1;
+                Node *peer = cluster_get_node(&cluster, msg->from_id);  
+                if (peer && peer->fd < 0) peer->fd = fd;                
                 raft_handle_message(&raft, msg, fd);
                 heartbeat_update(&heartbeat, msg->from_id);
                 continue;
@@ -179,6 +181,8 @@ static void *client_thread(void *arg)
         if (cs.is_peer) 
         {
             RaftMsg *msg = (RaftMsg*)buf;
+            Node *peer = cluster_get_node(&cluster, msg->from_id);      
+            if (peer && peer->fd < 0) peer->fd = fd;                    
             raft_handle_message(&raft, msg, fd);
             heartbeat_update(&heartbeat, msg->from_id);
             continue;
@@ -215,6 +219,7 @@ static void handle_sigint(int sig)
     printf("\n[server] shutting down...\n");
     raft_stop(&raft);
     heartbeat_stop(&heartbeat);
+    cluster_stop_reconnector(&cluster);  // ← add this
     if (server_fd != -1) 
     {
         close(server_fd);
@@ -280,6 +285,7 @@ int main(int argc, char *argv[])
 
     // Connect to peers then start Raft
     cluster_connect_peers(&cluster);
+    cluster_start_reconnector(&cluster);
     raft_start(&raft);
     heartbeat_start(&heartbeat, &cluster);
 
