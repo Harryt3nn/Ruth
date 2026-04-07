@@ -1,9 +1,7 @@
 #include "client.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 #define DEFAULT_HOST "127.0.0.1"
 #define DEFAULT_PORT  6379
 
