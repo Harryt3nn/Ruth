@@ -1,8 +1,8 @@
-CC      = gcc
-CFLAGS  = -Wall -Wextra -O2 -Iinclude -D_POSIX_C_SOURCE=200809L
+CC = gcc
+CFLAGS = -Wall -Wextra -O2 -Iinclude -D_POSIX_C_SOURCE=200809L
 LDFLAGS = -lssl -lcrypto -lpthread
 
-SRC_DIR   = src
+SRC_DIR = src
 BUILD_DIR = build
 
 OBJS = \
@@ -36,7 +36,7 @@ $(CLIENT_BIN): $(BUILD_DIR)/cli_main.o $(BUILD_DIR)/client.o \
 clean:
 	rm -f $(BUILD_DIR)/*.o $(SERVER_BIN) $(CLIENT_BIN)
 
-# ─── Run a 3-node cluster locally ─────────────────────────────────────────────
+# Run a 3-node cluster locally
 run-node1: $(SERVER_BIN)
 	$(SERVER_BIN) 1 config/cluster.conf
 
