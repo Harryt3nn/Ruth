@@ -1,8 +1,6 @@
 #ifndef CLUSTER_H
 #define CLUSTER_H
-
 #include <stdint.h>
-
 #define MAX_NODES 16
 
 typedef enum {

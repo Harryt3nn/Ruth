@@ -1,9 +1,9 @@
 #ifndef CLIENT_H
 #define CLIENT_H
-
 #include "session.h"
 
-typedef struct {
+typedef struct 
+{
     int     fd;
     char    host[64];
     int     port;

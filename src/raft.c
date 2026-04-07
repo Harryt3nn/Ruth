@@ -8,6 +8,10 @@
 #include <time.h>
 #include <sys/socket.h>
 
+
+// a raft is a consensus algorithm that ensures nodes agree on the same entry log sequence
+// commands leader election, crash recovery, commitment rules
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 static int random_election_timeout() {
     return 150 + (rand() % 150);  // 150–300ms
