@@ -55,3 +55,5 @@ https://r3.vlebooks.com/Reader?ean=9781447930174
 https://dl-acm-org.libproxy.ncl.ac.uk/doi/pdf/10.1145/359545.359563
 https://github.com/colohan/dschat
 
+
+Entry log 7: 10/04/26 - 13:57 Statement on generative AI; the final product will contain 0% ai generated code. As this is a learning project, I have granted myself permission to use generative ai as a tool, just like stack overflow in order to learn C as well as being able to provide a description on why code works, if I am unable to figure this out. 
