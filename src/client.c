@@ -1,41 +1,30 @@
-// Source - https://stackoverflow.com/q/18489271
-// Posted by user2725511, modified by community. See post 'Timeline' for change history
-// Retrieved 2026-04-07, License - CC BY-SA 3.0
-
 #include<stdio.h>
 #include<stdlib.h>
 #include<sys/types.h>
 #include<sys/socket.h>
-#include <errno.h>
-#include<string.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+#include<netinet/in.h>
 
-int main(void)
+
+int main()
 {
-    int byte_count;
-    struct sockaddr_in serveraddr;
-    char *servername;
-    char buf[256];
-    socklen_t addr_size;
-    int sockfd;
+    int network_socket = socket(AF_INET, SOCK_STREAM, 0);
 
-    sockfd=socket(AF_INET,SOCK_STREAM,0);
-    bzero(&serveraddr,sizeof(serveraddr));
-    serveraddr.sin_family=AF_INET;
-    serveraddr.sin_port=htons(11378);
-    servername=gethostbyname("localhost");
-    inet_pton(AF_INET,servername,&serveraddr.sin_addr);
+    struct sockaddr_in server_address;
+    server_address.sin_family = AF_INET;
+    server_address.sin_port = htons(9002);
+    server_address.sin_addr.s_addr = INADDR_ANY;
 
-    addr_size=sizeof(serveraddr);
-    if(connect(sockfd,(struct sockaddr *)&serveraddr,addr_size)==-1)
+    int connection_status = connect(network_socket, (struct sockaddr *) &server_address, sizeof(server_address));
+
+    if (connection_status == -1)
     {
-        perror("connect");
-        exit(1);
+        printf("CLIENTSIDE: connection error");
     }
+    char server_response[256];
+    recv(network_socket, &server_address, sizeof(server_response), 0);
 
-    byte_count = recv(sockfd, buf, sizeof buf, 0);
-    printf("recv()'d %d bytes of data in buf\n", byte_count);
+    printf("SERVERSIDE: The server sent the data %s\n", server_response);
 
-    close(sockfd);
+    close(network_socket);
+    return 0;
 }

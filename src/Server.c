@@ -1,46 +1,29 @@
-// Source - https://stackoverflow.com/q/18489271
-// Posted by user2725511, modified by community. See post 'Timeline' for change history
-// Retrieved 2026-04-07, License - CC BY-SA 3.0
-
 #include<stdio.h>
 #include<stdlib.h>
 #include<sys/types.h>
 #include<sys/socket.h>
-#include <errno.h>
-#include<string.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
 
-int main(void)
+int main()
 {
-    int sockid,newsockid;
-    socklen_t addr_size;
-    char *msg="What a beautiful morning!";
-    int len, bytes_sent;
-    sockid=socket(AF_INET,SOCK_STREAM,0);
-    if(sockid==-1)
-    {
-        perror("socket");
-        exit(1);
-    }
-    else
-        printf("created");
-    struct sockaddr_in serveraddr,clientaddr;
-    bzero((char *)&serveraddr,sizeof(serveraddr));
-    serveraddr.sin_family=AF_INET;
-    serveraddr.sin_port=htons(7400);
-    serveraddr.sin_addr.s_addr=INADDR_ANY;
+    char server_response[256] = "You have reached the server";
+    
+    int server_socket;
+    server_socket = socket(AF_INET, SOCK_STREAM, 0);
 
-    if(bind(sockid,(struct sockaddr *)&serveraddr,sizeof(serveraddr))<0)
-    {
-        perror("bind");
-        return -1;
-    }
+    struct sockaddr_in server_address;
+    server_address.sin_family = AF_INET;
+    server_address.sin_port = htons(9002);
+    server_address.sin_addr.s_addr = INADDR_ANY;
 
-    listen(sockid,5);
-    addr_size=sizeof(clientaddr);
-    newsockid=accept(sockid,(struct sockaddr *)&clientaddr,&addr_size);
-    len = strlen(msg);
-    bytes_sent = send(sockid, msg, len, 0);
-    close(sockid);
+    bind(server_socket, (struct sockaddr*) &server_address, sizeof(server_address));
+
+    listen(server_socket, 5);
+
+    int client_socket;
+    client_socket = accept(server_socket, NULL, NULL);
+
+    send(client_socket, server_response, sizeof(server_response), 0);
+    close(server_socket);
+    return 0;
 }
